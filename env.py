@@ -77,7 +77,7 @@ class SoccerEnv:
             reward += 0.02
         
         if action1 == 4 and self.possession != 1:
-            reward -= 0.1  # Penalty for kicking without possession
+            reward -= 0.5  # Penalty for kicking without possession
 
 
         # Optional: detect kicking (if action1 == 4 and possession)
@@ -86,7 +86,7 @@ class SoccerEnv:
             self.try_kick(self.p1, [1, 0])  # Kick right
             # Add extra reward if near the opponent's goal
             if self.ball.x > WIDTH * 0.7:
-                reward += 0.7  # More incentive to kick near goal
+                reward += 0.23  # More incentive to kick near goal
             else:
                 reward += 0.05  # Base reward for trying to kick
 
@@ -151,9 +151,7 @@ class SoccerEnv:
             self.ball.center = self.p2.center
 
     def _handle_possession(self,action1,action2):
-    # If ball is moving, no possession possible
-        #if self.ball_vel != [0, 0]:
-        #    return
+   
 
         # Check if current possessor is still close enough
         LOSS_PROBABILITY = 0.01  # 3% chance to lose possession randomly
@@ -173,7 +171,12 @@ class SoccerEnv:
         # If already has possession and still close, don't change it
         if self.possession == 1:
             if action1 != 4:
-                self.ball.center = self.p1.center
+                if action1 == 0: self.ball_vel[1] = -PLAYER_SPEED  # up
+                elif action1 == 1: self.ball_vel[1] = PLAYER_SPEED  # down
+                elif action1 == 2: self.ball_vel[0] = -PLAYER_SPEED  # left
+                elif action1 == 3: self.ball_vel[0] = PLAYER_SPEED  # right
+                #self.ball.center = self.p1.center
+                self._move_ball()
             return
         
         if self.possession == 2:

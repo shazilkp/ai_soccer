@@ -39,9 +39,9 @@ def get_agent2_action(env):
     # If agent 2 has possession, try to kick if facing goal
     if possession == 2:
         goal_y = HEIGHT // 2
-        print("agent2 ball dist",abs(p2.centery - goal_y))
+        #print("agent2 ball dist",abs(p2.centery - goal_y))
         if abs(p2.centery - goal_y) < 40:
-            print("in agent 2 possesion")
+            #print("in agent 2 possesion")
             return 4  # kick
         else:
             return direction_to(p2.center, (0, goal_y))
@@ -114,8 +114,8 @@ def eval_genome(genome, config):
             inputs = obs
             output = net.activate(inputs)
             a1 = interpret_output(output)
-           # a2 = np.random.choice([0, 1, 2, 3, 4])  # Random policy for player 2
-            a2 = get_agent2_action(env)
+            a2 = np.random.choice([0, 1, 2, 3, 4])  # Random policy for player 2
+            #a2 = get_agent2_action(env)
             #print(a2)
             try:
                 #if a1 == 4 and env.possession == 1:
@@ -172,6 +172,7 @@ def run_neat(config_file):
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     csv_filename = f"fitness_log_{timestamp}.csv"
+    png_filename = f"fitness_plot_{timestamp}.png"
     with open(csv_filename, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(["Generation", "MaxFitness"])
@@ -189,7 +190,7 @@ def run_neat(config_file):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig("fitness_plot.png")
+    plt.savefig(png_filename)
     plt.show()
 
 if __name__ == '__main__':

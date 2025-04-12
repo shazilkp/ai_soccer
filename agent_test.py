@@ -99,8 +99,9 @@ def visualize_agent(net, generation_number):
 
             output = net.activate(obs)
             action1 = np.argmax(output)
-            action2 = get_agent2_action(env)
-            print(action1,action2)
+            #action2 = get_agent2_action(env)
+            action2 = random_opponent_action()
+            print(action1,action2,env.possession)
             obs, reward, done, _ = env.step(action1, action2)
 
             # Draw overlay info
