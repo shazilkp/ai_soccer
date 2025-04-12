@@ -26,6 +26,41 @@ config = neat.Config(
 def random_opponent_action():
     return np.random.randint(0, 5)
 
+def get_agent2_action(env):
+    p2 = env.p2
+    p1 = env.p1
+    ball = env.ball
+    possession = env.possession
+
+    def direction_to(src, dst):
+        dx = dst[0] - src[0]
+        dy = dst[1] - src[1]
+        if abs(dx) > abs(dy):
+            return 3 if dx > 0 else 2  # right or left
+        else:
+            return 1 if dy > 0 else 0  # down or up
+
+    # If agent 2 has possession, try to kick if facing goal
+    if possession == 2:
+        goal_y = HEIGHT // 2
+        print("agent2 ball dist",abs(p2.centery - goal_y))
+        if abs(p2.centery - goal_y) < 40:
+            print("in agent 2 possesion")
+            return 4  # kick
+        else:
+            return direction_to(p2.center, (0, goal_y))
+
+    # If near the ball, try to gain possession
+    if env._distance(p2.center, ball.center) < 0.05:
+        return direction_to(p2.center, ball.center)
+
+    # If opponent has possession, intercept them
+    if possession == 1:
+        return direction_to(p2.center, p1.center)
+
+    # Default: move towards ball
+    return direction_to(p2.center, ball.center)
+
 
 def rule_based_agent2(env):
     p2 = env.p2
@@ -64,7 +99,7 @@ def visualize_agent(net, generation_number):
 
             output = net.activate(obs)
             action1 = np.argmax(output)
-            action2 = rule_based_agent2(env)
+            action2 = get_agent2_action(env)
             print(action1,action2)
             obs, reward, done, _ = env.step(action1, action2)
 
@@ -90,5 +125,13 @@ def run_all_best_genomes():
         print(f"\n🔍 Running visualization for Generation {gen_num}")
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         visualize_agent(net, gen_num)
+    
+    if os.path.exists("winner.pkl"):
+        with open("winner.pkl", "rb") as f:
+            winner_genome = pickle.load(f)
+
+        print(f"\n🏆 Running visualization for Final Winner")
+        net = neat.nn.FeedForwardNetwork.create(winner_genome, config)
+        visualize_agent(net, "winner")
 
 run_all_best_genomes()

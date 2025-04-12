@@ -90,6 +90,11 @@ class SoccerEnv:
             else:
                 reward += 0.05  # Base reward for trying to kick
 
+        if action2 == 4 and self.possession == 2:
+           # print("kicking logic reached")
+            self.try_kick(self.p2, [-1, 0])  # Kick right
+            # Add extra reward if near the opponent's goal
+
         self._move_ball()
 
         goal_top = HEIGHT // 2 - GOAL_WIDTH // 2

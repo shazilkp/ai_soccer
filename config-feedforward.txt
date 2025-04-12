@@ -5,59 +5,67 @@ pop_size              = 50
 reset_on_extinction   = False
 
 [DefaultGenome]
+# Node activation/aggregation
 activation_default      = tanh
-activation_mutate_rate  = 0.0
-activation_options      = tanh
+activation_mutate_rate  = 0.2
+activation_options      = tanh sigmoid relu identity
 
 aggregation_default     = sum
-aggregation_mutate_rate = 0.0
-aggregation_options     = sum
+aggregation_mutate_rate = 0.1
+aggregation_options     = sum max min
 
+# Bias configuration
 bias_init_mean          = 0.0
 bias_init_stdev         = 1.0
 bias_max_value          = 30.0
 bias_min_value          = -30.0
-bias_mutate_power       = 0.5
-bias_mutate_rate        = 0.7
-bias_replace_rate       = 0.1
+bias_mutate_power       = 2.0
+bias_mutate_rate        = 0.9
+bias_replace_rate       = 0.3
 
-compatibility_disjoint_coefficient = 1.0
-compatibility_weight_coefficient   = 0.5
+# Compatibility (for speciation)
+compatibility_disjoint_coefficient = 1.5
+compatibility_weight_coefficient   = 0.7
 
-conn_add_prob           = 0.5
-conn_delete_prob        = 0.5
+# Connection mutation
+conn_add_prob           = 0.9
+conn_delete_prob        = 0.6
 
+# Enable/disable connection
 enabled_default         = True
-enabled_mutate_rate     = 0.01
+enabled_mutate_rate     = 0.1
 
+# Network structure
 feed_forward            = True
 initial_connection      = full_direct
 
-node_add_prob           = 0.2
-node_delete_prob        = 0.2
+node_add_prob           = 0.6
+node_delete_prob        = 0.5
 
 num_hidden              = 0
 num_inputs              = 9
 num_outputs             = 5
 
+# Node response (not used much unless recurrent, but included for flexibility)
 response_init_mean      = 1.0
-response_init_stdev     = 0.0
+response_init_stdev     = 1.0
 response_max_value      = 30.0
 response_min_value      = -30.0
-response_mutate_power   = 0.0
-response_mutate_rate    = 0.0
-response_replace_rate   = 0.0
+response_mutate_power   = 1.0
+response_mutate_rate    = 0.3
+response_replace_rate   = 0.1
 
+# Weight mutation
 weight_init_mean        = 0.0
 weight_init_stdev       = 1.0
 weight_max_value        = 30
 weight_min_value        = -30
-weight_mutate_power     = 0.5
-weight_mutate_rate      = 0.8
-weight_replace_rate     = 0.1
+weight_mutate_power     = 2.0
+weight_mutate_rate      = 0.95
+weight_replace_rate     = 0.3
 
 [DefaultSpeciesSet]
-compatibility_threshold = 3.0
+compatibility_threshold = 4.5
 
 [DefaultStagnation]
 species_fitness_func = max
