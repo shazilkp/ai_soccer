@@ -2,6 +2,9 @@ import neat
 import numpy as np
 from env import SoccerEnv
 import os
+import matplotlib.pyplot as plt
+import csv
+from datetime import datetime
 #import visualize
 
 EPISODES = 5
@@ -16,6 +19,7 @@ GOAL_WIDTH = 80
 def interpret_output(output):
     return np.argmax(output)
 
+max_fitnesses = []
 generation_counter = [0]  # use list so it can be mutated inside the function
 
 def get_agent2_action(env):
@@ -83,6 +87,8 @@ def eval_genomes(genomes, config):
         if genome.fitness > best_fitness:
             best_fitness = genome.fitness
             best_genome = genome
+
+    max_fitnesses.append(best_fitness)
 
     # Save best genome every 10 generations
     if generation_counter[0] % 10 == 0:
@@ -163,6 +169,28 @@ def run_neat(config_file):
     # visualize.draw_net(config, winner, True)
     # visualize.plot_stats(stats, ylog=False, view=True)
     # visualize.plot_species(stats, view=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    csv_filename = f"fitness_log_{timestamp}.csv"
+    with open(csv_filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Generation", "MaxFitness"])
+        for i, fitness in enumerate(max_fitnesses):
+            writer.writerow([i + 1, fitness])
+    print(f"✔ Fitness data saved to {csv_filename}")
+
+    plt.figure(figsize=(10, 5))
+    print(max_fitnesses)
+    plt.plot(max_fitnesses, label='Max Fitness per Generation')
+    plt.axhline(y=config.fitness_threshold, color='r', linestyle='--', label='Fitness Threshold')
+    plt.xlabel("Generation")
+    plt.ylabel("Fitness")
+    plt.title("Fitness Progression Over Generations")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig("fitness_plot.png")
+    plt.show()
 
 if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)

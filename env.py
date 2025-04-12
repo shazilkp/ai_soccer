@@ -22,7 +22,7 @@ class SoccerEnv:
         self.p1 = pygame.Rect(100, HEIGHT // 2, PLAYER_SIZE, PLAYER_SIZE)
         self.p2 = pygame.Rect(WIDTH - 100, HEIGHT // 2, PLAYER_SIZE, PLAYER_SIZE)
         self.ball = pygame.Rect(WIDTH // 2, HEIGHT // 2, BALL_SIZE, BALL_SIZE)
-        self.ball_vel = [0, 0]
+        self.ball_vel = [random.randint(-1,1), 0]
         self.done = False
         self.possession = 0  # 0 = none, 1 = p1, 2 = p2
         return self.get_obs()
@@ -63,7 +63,7 @@ class SoccerEnv:
         #print(action1);
         self._move_player(self.p1, action1)
         self._move_player(self.p2, action2)
-        self._handle_possession()
+        self._handle_possession(action1=action1,action2=action2)
 
         reward = 0.0
 
@@ -141,14 +141,68 @@ class SoccerEnv:
         player.x = max(0, min(WIDTH - PLAYER_SIZE, player.x))
         player.y = max(0, min(HEIGHT - PLAYER_SIZE, player.y))
 
-    def _handle_possession(self):
-        if self.ball_vel == [0, 0]:  # Only allow possession if the ball is stationary
-            if self.ball.colliderect(self.p1):
-                self.possession = 1
+    def _handle_possession1(self):
+        #if self.ball_vel == [0, 0]:  # Only allow possession if the ball is stationary
+        if self.ball.colliderect(self.p1):
+            self.possession = 1
+            self.ball.center = self.p1.center
+        elif self.ball.colliderect(self.p2):
+            self.possession = 2
+            self.ball.center = self.p2.center
+
+    def _handle_possession(self,action1,action2):
+    # If ball is moving, no possession possible
+        #if self.ball_vel != [0, 0]:
+        #    return
+
+        # Check if current possessor is still close enough
+        LOSS_PROBABILITY = 0.01  # 3% chance to lose possession randomly
+
+        if self.possession == 1:
+            if not self.ball.colliderect(self.p1) or random.random() < LOSS_PROBABILITY:
+               # print("possession 1 lost")
+                self.possession = 0
+                return
+
+        elif self.possession == 2:
+            if not self.ball.colliderect(self.p2) or random.random() < LOSS_PROBABILITY:
+               # print("possession 2 lost")
+                self.possession = 0
+                return
+
+        # If already has possession and still close, don't change it
+        if self.possession == 1:
+            if action1 != 4:
                 self.ball.center = self.p1.center
-            elif self.ball.colliderect(self.p2):
-                self.possession = 2
+            return
+        
+        if self.possession == 2:
+            if action2 != 4:
                 self.ball.center = self.p2.center
+            return
+
+        # Determine if players are close enough to the ball
+        p1_close = self.ball.colliderect(self.p1)
+        p2_close = self.ball.colliderect(self.p2)
+
+      #  print(p1_close,p2_close)
+
+        # Both are in range
+        if p1_close and p2_close:
+          #  print("both close")
+            self.possession = random.choice([1, 2])
+            self.ball.center = self.p1.center if self.possession == 1 else self.p2.center
+
+        elif p1_close:
+            
+            self.possession = 1
+            self.ball.center = self.p1.center
+           # print("p1 close",self.ball.center,self.p1.center)
+
+        elif p2_close:
+           # print("p2 close")
+            self.possession = 2
+            self.ball.center = self.p2.center
 
 
     def _move_ball(self):
