@@ -21,6 +21,7 @@ def interpret_output(output):
 
 max_fitnesses = []
 generation_counter = [0]  # use list so it can be mutated inside the function
+goal_ratio = []
 
 def get_agent2_action(env):
     p2 = env.p2
@@ -82,11 +83,14 @@ def eval_genomes(genomes, config):
     best_genome = None
     best_fitness = float('-inf')
 
+    i=0
     for genome_id, genome in genomes:
-        eval_genome(genome, config)
+        is_First = generation_counter[0] == 1 and i == 0
+        eval_genome(genome, config,is_First)
         if genome.fitness > best_fitness:
             best_fitness = genome.fitness
             best_genome = genome
+        i+=1
 
     max_fitnesses.append(best_fitness)
 
@@ -98,31 +102,43 @@ def eval_genomes(genomes, config):
         print(f"✔ Saved best genome of generation {generation_counter[0]} (fitness={best_fitness})")
 
 
-def eval_genome(genome, config):
+def eval_genome(genome, config,log_obs =False):
     print("Evaluating a genome...") 
     net = neat.nn.FeedForwardNetwork.create(genome, config)
     env = SoccerEnv(render_mode=False)
     total_reward = 0.0
     MAX_STEPS = 300
 
+
+    obs_log = []
+
+    scored_goal_count = 0
+    conceded_goal_count = 0
     for episode in range(EPISODES):
         obs = env.reset()
         done = False
         step = 0
 
         while not done and step < MAX_STEPS:
+            if log_obs:
+                obs_log.append(obs)
+            
             inputs = obs
             output = net.activate(inputs)
             a1 = interpret_output(output)
-            a2 = np.random.choice([0, 1, 2, 3, 4])  # Random policy for player 2
-            #a2 = get_agent2_action(env)
+            #a2 = np.random.choice([0, 1, 2, 3, 4])  # Random policy for player 2
+            a2 = get_agent2_action(env)
             #print(a2)
             try:
                 #if a1 == 4 and env.possession == 1:
                 #    print("Agent tried to kick!")
                  #   env.try_kick(env.p1, [1, 0])  # Right direction
 
-                obs, reward, done, _ = env.step(a1, a2)
+                obs, reward, done, scorer, _ = env.step(a1, a2)
+                if scorer == 1:
+                    scored_goal_count+=1
+                if scorer == 2:
+                    conceded_goal_count+=1
                 total_reward += reward
             except Exception as e:
                 print(f"Error during step: {e}")
@@ -136,8 +152,20 @@ def eval_genome(genome, config):
         else:
             print(f"Episode {episode+1} ended with goal.")
 
+    if conceded_goal_count != 0:
+        goal_rat = scored_goal_count/conceded_goal_count
+    else:
+        goal_rat = scored_goal_count
+    goal_ratio.append(goal_rat)
     # Avoid 0 fitness to prevent stagnation
     genome.fitness = total_reward / EPISODES + 1e-6
+
+    if log_obs:
+        with open('obs_log_gen1.csv', 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow("p1_x,p1_y,p2_x,p2_y,ball_x,ball_y,ball_vel_0,ball_vel_1,possession")  # Header
+            writer.writerows(obs_log)
+        print("Logged observations to obs_log_gen1.csv")
 
 
 
@@ -179,6 +207,13 @@ def run_neat(config_file):
         for i, fitness in enumerate(max_fitnesses):
             writer.writerow([i + 1, fitness])
     print(f"✔ Fitness data saved to {csv_filename}")
+
+    with open('goal_ratio_log.csv', 'w', newline='') as f:
+        writer = csv.writer(f)
+        for i, ratio in enumerate(goal_ratio):
+            writer.writerow([i + 1, goal_ratio])
+    print("Logged ratio")
+
 
     plt.figure(figsize=(10, 5))
     print(max_fitnesses)

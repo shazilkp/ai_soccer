@@ -11,10 +11,29 @@ BALL_SPEED = 6
 GOAL_WIDTH = 80
 
 class SoccerEnv:
+
+    def load_assets(self):
+        self.field_image = pygame.image.load("assets/field.png").convert_alpha()
+        self.field_image = pygame.transform.scale(self.field_image, (WIDTH, HEIGHT))
+
+        self.player1_image = pygame.image.load("assets/right_player_img.png").convert_alpha()
+        self.player1_image = pygame.transform.scale(self.player1_image, (PLAYER_SIZE, PLAYER_SIZE))
+
+        self.player2_image = pygame.image.load("assets/left_player_img.png").convert_alpha()
+        self.player2_image = pygame.transform.scale(self.player2_image, (PLAYER_SIZE, PLAYER_SIZE))
+
+        self.ball_image = pygame.image.load("assets/football.png").convert_alpha()
+        self.ball_image = pygame.transform.scale(self.ball_image, (BALL_SIZE*2, BALL_SIZE*2))
+
+
     def __init__(self, render_mode=True):
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT)) if render_mode else None
         self.clock = pygame.time.Clock()
+        self.gk1 = pygame.Rect(10, HEIGHT // 2, PLAYER_SIZE, PLAYER_SIZE)  # Left goal
+        self.gk2 = pygame.Rect(WIDTH - 30, HEIGHT // 2, PLAYER_SIZE, PLAYER_SIZE)  # Right goal
+        if render_mode == True:
+            self.load_assets()
         self.render_mode = render_mode
         self.reset()
 
@@ -22,7 +41,9 @@ class SoccerEnv:
         self.p1 = pygame.Rect(100, HEIGHT // 2, PLAYER_SIZE, PLAYER_SIZE)
         self.p2 = pygame.Rect(WIDTH - 100, HEIGHT // 2, PLAYER_SIZE, PLAYER_SIZE)
         self.ball = pygame.Rect(WIDTH // 2, HEIGHT // 2, BALL_SIZE, BALL_SIZE)
-        self.ball_vel = [random.randint(-1,1), 0]
+        self.ball_vel = [random.randint(-1,1),0]
+        self.gk1 = pygame.Rect(10, HEIGHT // 2, PLAYER_SIZE, PLAYER_SIZE)  # Left goal
+        self.gk2 = pygame.Rect(WIDTH - 30, HEIGHT // 2, PLAYER_SIZE, PLAYER_SIZE)  # Right goal
         self.done = False
         self.possession = 0  # 0 = none, 1 = p1, 2 = p2
         return self.get_obs()
@@ -57,9 +78,10 @@ class SoccerEnv:
 
 
 
-
+    stepcount = 0
     def step(self, action1, action2):
         old_dist = self._distance(self.p1.center, self.ball.center)
+        scorer = 0
         #print(action1);
         self._move_player(self.p1, action1)
         self._move_player(self.p2, action2)
@@ -103,22 +125,29 @@ class SoccerEnv:
         # Check for own goal (ball crosses left boundary *and* is within goal height)
         if self.ball.left <= 0 and goal_top <= self.ball.y <= goal_bottom:
             print("Own goal")
+            scorer = 2
             reward -= 0.5
             self.done = True
 
         # Check for scoring (ball crosses right boundary *and* is within goal height)
         elif self.ball.right >= WIDTH and goal_top <= self.ball.y <= goal_bottom:
             print("Scored a goal!")
+            scorer = 1
             reward += 2.0
             if action1 == 4:  # last action was a kick
                 reward += 0.5 
             self.done = True
 
+        if self.stepcount % 5 == 0:
+            #print("goalie move")
+            self._move_goalkeepers()
+        
+        self.stepcount += 1
 
         if self.render_mode:
             self.render()
 
-        return self.get_obs(), reward, self.done, {}
+        return self.get_obs(), reward, self.done,scorer, {}
         
     def _distance(self, a, b):
         return np.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
@@ -153,6 +182,14 @@ class SoccerEnv:
     def _handle_possession(self,action1,action2):
    
 
+
+        if self.ball.colliderect(self.gk1):
+            self.ball_vel[0] = abs(self.ball_vel[0])  # bounce to the right
+
+        if self.ball.colliderect(self.gk2):
+            self.ball_vel[0] = -abs(self.ball_vel[0])
+
+        
         # Check if current possessor is still close enough
         LOSS_PROBABILITY = 0.01  # 3% chance to lose possession randomly
 
@@ -181,7 +218,12 @@ class SoccerEnv:
         
         if self.possession == 2:
             if action2 != 4:
-                self.ball.center = self.p2.center
+                if action2 == 0: self.ball_vel[1] = -PLAYER_SPEED  # up
+                elif action2 == 1: self.ball_vel[1] = PLAYER_SPEED  # down
+                elif action2 == 2: self.ball_vel[0] = -PLAYER_SPEED  # left
+                elif action2 == 3: self.ball_vel[0] = PLAYER_SPEED  # right
+                #self.ball.center = self.p1.center
+                self._move_ball()
             return
 
         # Determine if players are close enough to the ball
@@ -207,6 +249,33 @@ class SoccerEnv:
             self.possession = 2
             self.ball.center = self.p2.center
 
+    def _move_goalkeepers(self):
+        goal_top = HEIGHT // 2 - GOAL_WIDTH // 2
+        goal_bottom = HEIGHT // 2 + GOAL_WIDTH // 2
+
+        # Introduce randomness: slight delay or misjudgment
+        reaction_chance = 0.5  # 90% chance to react correctly
+        offset_range = 50  # pixels they might aim wrong
+
+        # Goalkeeper 1
+        if random.random() < reaction_chance:
+            target_y1 = self.ball.centery + random.randint(-offset_range, offset_range)
+            if target_y1 < self.gk1.centery:
+                self.gk1.y -= PLAYER_SPEED
+            elif target_y1 > self.gk1.centery:
+                self.gk1.y += PLAYER_SPEED
+
+        # Goalkeeper 2
+        if random.random() < reaction_chance:
+            target_y2 = self.ball.centery + random.randint(-offset_range, offset_range)
+            if target_y2 < self.gk2.centery:
+                self.gk2.y -= PLAYER_SPEED
+            elif target_y2 > self.gk2.centery:
+                self.gk2.y += PLAYER_SPEED
+
+        # Clamp positions within the goal area
+        self.gk1.y = max(goal_top, min(goal_bottom - PLAYER_SIZE, self.gk1.y))
+        self.gk2.y = max(goal_top, min(goal_bottom - PLAYER_SIZE, self.gk2.y))
 
     def _move_ball(self):
         self.ball.x += self.ball_vel[0]
@@ -214,14 +283,17 @@ class SoccerEnv:
 
         if self.ball.top <= 0 or self.ball.bottom >= HEIGHT:
             self.ball_vel[1] *= -1
+      
 
     def render(self):
-        self.screen.fill((34, 139, 34))
+        self.screen.blit(self.field_image, (0, 0))
         pygame.draw.rect(self.screen, (255, 255, 255), (0, HEIGHT//2 - GOAL_WIDTH//2, 10, GOAL_WIDTH))
         pygame.draw.rect(self.screen, (255, 255, 255), (WIDTH-10, HEIGHT//2 - GOAL_WIDTH//2, 10, GOAL_WIDTH))
-        pygame.draw.rect(self.screen, (0, 0, 255), self.p1)
-        pygame.draw.rect(self.screen, (255, 0, 0), self.p2)
-        pygame.draw.ellipse(self.screen, (255, 255, 255), self.ball)
+        self.screen.blit(self.player1_image, self.p1.topleft)
+        self.screen.blit(self.player2_image, self.p2.topleft)
+        self.screen.blit(self.ball_image, self.ball.topleft)
+        pygame.draw.rect(self.screen, (0, 15, 155), self.gk1)  # Blue for gk1
+        pygame.draw.rect(self.screen, (155, 15, 0), self.gk2)  # Red for gk2
         pygame.display.flip()
         self.clock.tick(60)
 

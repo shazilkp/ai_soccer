@@ -2,8 +2,11 @@ import pickle
 import neat
 import pygame
 import numpy as np
+import matplotlib.pyplot as plt
 import os
+import csv
 import re
+from datetime import datetime
 from env import SoccerEnv  # Your custom env
 
 WIDTH, HEIGHT = 640, 480
@@ -16,7 +19,7 @@ GOAL_WIDTH = 80
 # Load the NEAT config
 config = neat.Config(
     neat.DefaultGenome,
-    neat.DefaultReproduction,
+    neat.DefaultReproduction, 
     neat.DefaultSpeciesSet,
     neat.DefaultStagnation,
     "config-feedforward.txt"
@@ -84,8 +87,35 @@ def draw_text(screen, text, x, y, size=24, color=(255, 255, 255)):
     surface = font.render(text, True, color)
     screen.blit(surface, (x, y))
 
+
+def plot_heatmap(positions, gen_num):
+    xs = [p[0] for p in positions]
+    ys = [p[1] for p in positions]
+
+    heatmap, xedges, yedges = np.histogram2d(xs, ys, bins=(32, 24), range=[[0, WIDTH], [0, HEIGHT]])
+
+    plt.clf()
+    plt.imshow(heatmap.T, origin='lower', cmap='magma', interpolation='nearest', extent=[0, WIDTH, 0, HEIGHT])
+    plt.colorbar(label='Visit Frequency')
+    plt.title(f"Player 1 Heatmap - Generation {gen_num}")
+    plt.xlabel("X Position")
+    plt.ylabel("Y Position")
+
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    dirname = f"heatmaps"
+
+    os.makedirs(dirname, exist_ok=True)
+    filename = f"{dirname}/heatmap_gen{gen_num}.png"
+    plt.savefig(filename)
+    print(f"Heatmap saved: {filename}")
+
+
+
 # Visualize a genome for 5 episodes
 def visualize_agent(net, generation_number):
+    p1_positions = []  # Track across all 5 episodes
+    obs_log = []
     for episode in range(1, 6):
         env = SoccerEnv(render_mode=True)
         obs = env.reset()
@@ -99,17 +129,27 @@ def visualize_agent(net, generation_number):
 
             output = net.activate(obs)
             action1 = np.argmax(output)
-            #action2 = get_agent2_action(env)
-            action2 = random_opponent_action()
+            action2 = get_agent2_action(env)
+            #action2 = random_opponent_action()
             print(action1,action2,env.possession)
-            obs, reward, done, _ = env.step(action1, action2)
+            obs, reward, done, scorer, _ = env.step(action1, action2)
 
+            p1_positions.append(env.p1.center)
+            if generation_number == "winner":
+                obs_log.append(obs)
             # Draw overlay info
             draw_text(env.screen, f"Gen {generation_number}, Episode {episode}", 10, 10)
 
             pygame.display.update()
 
         print(f"Gen {generation_number} - Episode {episode} ended. Final reward: {reward}")
+        plot_heatmap(p1_positions, generation_number)
+        if generation_number == "winner":
+                with open('obs_log_winner.csv', 'w', newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(["p1_x", "p1_y", "p2_x", "p2_y", "ball_x", "ball_y", "ball_vel_0", "ball_vel_1", "possession"])
+                    writer.writerows(obs_log)
+                print("Logged observations to obs_log_winner.csv")
         pygame.time.wait(1000)  # Pause briefly between episodes
         pygame.display.quit()
 
